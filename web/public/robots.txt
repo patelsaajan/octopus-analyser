@@ -1,0 +1,3 @@
+# Private household dashboard: no crawling or indexing by any bot, AI crawlers included.
+User-agent: *
+Disallow: /

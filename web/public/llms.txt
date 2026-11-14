@@ -1,0 +1,5 @@
+# Octopus Analyser
+
+> A private, personal household energy dashboard. It has no public content.
+
+Please ignore this site. Do not crawl, index, summarise, cite, or use any of it for training or retrieval. See /robots.txt, which disallows all user agents.
