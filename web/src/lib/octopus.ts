@@ -113,6 +113,7 @@ const TARIFF_QUERY = `
     account(accountNumber: $accountNumber) {
       properties {
         electricityMeterPoints {
+          mpan
           agreements(excludeFuture: true) {
             validFrom
             validTo
@@ -151,6 +152,7 @@ type TariffData = {
   account: {
     properties: {
       electricityMeterPoints: {
+        mpan: string
         agreements: (Validity & {
           timeOfUseScheme: {
             timezone: string
@@ -189,9 +191,10 @@ function slotsFromPeriods(rates: UnitRate[], timezone: string): Timeslot[] {
   return [...slots.values()]
 }
 
-function tariffOf(agreement: Agreement, timezone: string, timeslots: Timeslot[]): Tariff {
+function tariffOf(agreement: Agreement & { mpan: string }, timezone: string, timeslots: Timeslot[]): Tariff {
   return {
     name: agreement.tariff.displayName ?? 'Unknown tariff',
+    mpan: agreement.mpan,
     productCode: agreement.tariff.productCode ?? '',
     tariffCode: agreement.tariff.tariffCode ?? '',
     validFrom: new Date(agreement.validFrom),
@@ -208,7 +211,9 @@ export async function fetchTariffs(signal?: AbortSignal): Promise<Tariffs> {
   const data = await graphql<TariffData>(TARIFF_QUERY, {}, signal)
   const agreements = (
     data?.account.properties.flatMap((property) =>
-      property.electricityMeterPoints.flatMap((meterPoint) => meterPoint.agreements),
+      property.electricityMeterPoints.flatMap((meterPoint) =>
+        meterPoint.agreements.map((agreement) => ({ ...agreement, mpan: meterPoint.mpan })),
+      ),
     ) ?? []
   ).filter((agreement) => isCurrent(agreement) && agreement.tariff.unitRates)
 
@@ -230,6 +235,45 @@ export async function fetchTariffs(signal?: AbortSignal): Promise<Tariffs> {
     import: tariffOf(importAgreement, scheme.timezone, importSlots),
     export: tariffOf(exportAgreement, scheme.timezone, slotsFromPeriods(exportAgreement.tariff.unitRates ?? [], scheme.timezone)),
   }
+}
+
+const AVAILABLE_PRODUCTS_QUERY = `
+  query AvailableProducts($accountNumber: String!, $mpans: [String]!, $availableAt: DateTime!) {
+    availableProductsForMeterPoint(accountNumber: $accountNumber, mpxns: $mpans, availableAt: $availableAt) {
+      products {
+        code
+        displayName
+        availableFrom
+        isDomestic
+        isHidden
+      }
+    }
+  }
+`
+
+type AvailableProductsData = {
+  availableProductsForMeterPoint: {
+    products: { code: string; displayName: string; availableFrom: string; isDomestic: boolean | null; isHidden: boolean }[]
+  }[]
+}
+
+// Codes of the domestic plans Octopus says a meter point can switch to now. Some plans are listed in several
+// versions under one name (e.g. two Smart Export Guarantee products), so only the newest of each name is kept.
+export async function fetchAvailableProducts(mpan: string, signal: AbortSignal): Promise<string[]> {
+  const data = await graphql<AvailableProductsData>(
+    AVAILABLE_PRODUCTS_QUERY,
+    { mpans: [mpan], availableAt: new Date().toISOString() },
+    signal,
+  )
+  const newestByName = new Map<string, { code: string; availableFrom: string }>()
+  for (const product of data?.availableProductsForMeterPoint[0]?.products ?? []) {
+    if (product.isHidden || product.isDomestic === false) continue
+    const seen = newestByName.get(product.displayName)
+    if (!seen || new Date(product.availableFrom) > new Date(seen.availableFrom)) {
+      newestByName.set(product.displayName, product)
+    }
+  }
+  return [...newestByName.values()].map(({ code }) => code)
 }
 
 // The proxy fills in the account number on every query, so asking the API for it is how the browser learns it.

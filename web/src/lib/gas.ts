@@ -5,6 +5,10 @@ import { periodEnd, type Period } from '@/lib/period'
 // A gas agreement's flat tariff: unit rate in pence per kWh and standing charge in pence per day, both including VAT.
 export type GasTariff = {
   name: string
+  // The gas meter point the agreement is on.
+  mprn: string
+  productCode: string
+  // e.g. G-1R-VAR-22-11-01-K, whose last letter is the region.
   tariffCode: string
   validFrom: Date
   validTo: Date | null
@@ -67,6 +71,7 @@ const GAS_TARIFF_QUERY = `
     account(accountNumber: $accountNumber) {
       properties {
         gasMeterPoints {
+          mprn
           agreements(excludeFuture: true) {
             validFrom
             validTo
@@ -74,6 +79,7 @@ const GAS_TARIFF_QUERY = `
               __typename
               ... on GasTariffType {
                 displayName
+                productCode
                 tariffCode
                 unitRate
                 standingCharge
@@ -90,12 +96,14 @@ type GasTariffData = {
   account: {
     properties: {
       gasMeterPoints: {
+        mprn: string
         agreements: {
           validFrom: string
           validTo: string | null
           tariff: {
             __typename: string
             displayName?: string
+            productCode?: string
             tariffCode?: string
             unitRate?: number
             standingCharge?: number
@@ -111,15 +119,19 @@ export async function fetchGasTariffs(signal?: AbortSignal): Promise<GasTariff[]
   const data = await graphql<GasTariffData>(GAS_TARIFF_QUERY, {}, signal)
   const agreements =
     data?.account.properties.flatMap((property) =>
-      property.gasMeterPoints.flatMap((meterPoint) => meterPoint.agreements),
+      property.gasMeterPoints.flatMap((meterPoint) =>
+        meterPoint.agreements.map((agreement) => ({ ...agreement, mprn: meterPoint.mprn })),
+      ),
     ) ?? []
 
-  return agreements.flatMap(({ validFrom, validTo, tariff }) =>
+  return agreements.flatMap(({ validFrom, validTo, tariff, mprn }) =>
     tariff.unitRate === undefined || tariff.standingCharge === undefined
       ? []
       : [
           {
             name: tariff.displayName ?? 'Unknown tariff',
+            mprn,
+            productCode: tariff.productCode ?? '',
             tariffCode: tariff.tariffCode ?? '',
             validFrom: new Date(validFrom),
             validTo: validTo ? new Date(validTo) : null,

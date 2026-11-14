@@ -1,97 +1,18 @@
-import { format, getHours, subDays } from 'date-fns'
-import { useEffect, useState } from 'react'
+import { getHours } from 'date-fns'
+import { StatTile } from '@/components/stat-tile'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { Skeleton } from '@/components/ui/skeleton'
-import { loadGasTariffs } from '@/hooks/use-gas-tariffs'
-import { fetchGasReadings, gasCost, gasStandingCharges, latestGasTariff, type GasTariff } from '@/lib/gas'
+import { useGas } from '@/hooks/use-gas'
+import { gasCost, gasStandingCharges, latestGasTariff } from '@/lib/gas'
 import type { Reading } from '@/lib/octopus'
-import { bucketsOf, type Bucket, type Period, type PeriodMode } from '@/lib/period'
+import { BUCKET_LABELS, BUCKET_NAMES, bucketsOf, HOUR_OF_DAY_LABELS, type Period } from '@/lib/period'
 import { formatValue, type Unit } from '@/lib/tariff'
-
-const BUCKET_NAMES: Record<PeriodMode, string> = { day: 'hour', week: 'day', month: 'week', year: 'month' }
-
-// How each mode labels a bar on the axis, and in full in the tooltip, matching the electricity charts.
-const BUCKET_LABELS: Record<PeriodMode, { tick: (bucket: Bucket) => string; full: (bucket: Bucket) => string }> = {
-  day: {
-    tick: ({ start }) => format(start, 'HH:mm'),
-    full: ({ start, end }) => `${format(start, 'HH:mm')} to ${format(end, 'HH:mm')}`,
-  },
-  week: {
-    tick: ({ start }) => format(start, 'EEE d'),
-    full: ({ start }) => format(start, 'EEEE d MMMM'),
-  },
-  month: {
-    tick: ({ start }) => format(start, 'd MMM'),
-    full: ({ start, end }) => `${format(start, 'd')} to ${format(subDays(end, 1), 'd MMMM')}`,
-  },
-  year: {
-    tick: ({ start }) => format(start, 'MMM'),
-    full: ({ start }) => format(start, 'MMMM yyyy'),
-  },
-}
 
 const CONFIG: ChartConfig = { gas: { label: 'Gas', color: 'var(--chart-gas)' } }
 
-type GasResult =
-  | { status: 'error'; message: string }
-  // readings are daily (hourly for a day) and complete; hourly only feeds the time-of-day chart.
-  | { status: 'success'; readings: Reading[]; hourly: Reading[]; tariffs: GasTariff[] }
-
-function useGas(period: Period): { status: 'loading' } | GasResult {
-  const mode = period.mode
-  const from = period.start.getTime()
-  const key = `${mode}:${from}`
-
-  // Results are tagged with the period they belong to, so a new period reads as loading without resetting state.
-  const [result, setResult] = useState<{ key: string; value: GasResult }>()
-
-  useEffect(() => {
-    const controller = new AbortController()
-    const key = `${mode}:${from}`
-
-    const period = { mode, start: new Date(from) }
-    const hourly = fetchGasReadings(period, 'HOUR_INTERVAL', controller.signal)
-    // A day is charted by the hour anyway, so it skips the daily request.
-    const readings = mode === 'day' ? hourly : fetchGasReadings(period, 'DAY_INTERVAL', controller.signal)
-
-    Promise.all([readings, hourly, loadGasTariffs()])
-      .then(([readings, hourly, tariffs]) => setResult({ key, value: { status: 'success', readings, hourly, tariffs } }))
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        const message = error instanceof Error ? error.message : String(error)
-        setResult({ key, value: { status: 'error', message } })
-      })
-
-    return () => controller.abort()
-  }, [mode, from])
-
-  if (result?.key !== key) return { status: 'loading' }
-  return result.value
-}
-
-// null means there's nothing to show, such as a price for readings no agreement covers.
-function StatTile({ title, value, children }: { title: string; value: number | null | undefined; children: (value: number) => string }) {
-  return (
-    <Card className="rounded-2xl ring-0">
-      <CardContent className="flex flex-col gap-1">
-        <span className="text-xs font-medium tracking-label text-muted-foreground uppercase">{title}</span>
-        {value === undefined ? (
-          <Skeleton className="h-10 w-32 bg-muted" />
-        ) : value === null ? (
-          <span className="text-4xl font-bold tracking-heading text-muted-foreground">n/a</span>
-        ) : (
-          <span className="text-4xl font-bold tracking-heading tabular-nums">{children(value)}</span>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
 type BucketTotal = { tick: string; full: string; gas: number }
-
-const hourLabel = (hour: number) => `${String(hour % 24).padStart(2, '0')}:00`
 
 // The period's own buckets, or with byHourOfDay every day folded onto one 24-hour axis.
 function bucketTotals(
@@ -101,11 +22,7 @@ function bucketTotals(
   byHourOfDay: boolean,
 ): BucketTotal[] {
   if (byHourOfDay) {
-    const totals = Array.from({ length: 24 }, (_, hour) => ({
-      tick: hourLabel(hour),
-      full: `${hourLabel(hour)} to ${hourLabel(hour + 1)}`,
-      gas: 0,
-    }))
+    const totals = HOUR_OF_DAY_LABELS.map((label) => ({ ...label, gas: 0 }))
     for (const reading of readings) totals[getHours(reading.startAt)].gas += valueOf(reading)
     return totals
   }
@@ -215,15 +132,9 @@ export function GasUsage({ period, unit }: { period: Period; unit: Unit }) {
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatTile title="Gas used" value={kwh}>
-          {(value) => formatValue(value, 'kwh')}
-        </StatTile>
-        <StatTile title="Gas cost" value={cost}>
-          {(value) => formatValue(value, 'gbp')}
-        </StatTile>
-        <StatTile title="Unit rate" value={loaded && (tariff?.unitRate ?? null)}>
-          {(value) => `${value.toFixed(1)}p /kWh`}
-        </StatTile>
+        <StatTile title="Gas used" value={kwh} unit="kwh" icon="gas" />
+        <StatTile title="Gas cost" value={cost} unit="gbp" icon="gas" />
+        <StatTile title="Unit rate" value={loaded && (tariff?.unitRate ?? null)} unit="rate" icon="rate" />
       </div>
 
       <GasChartCard

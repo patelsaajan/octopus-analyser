@@ -11,12 +11,47 @@ import { useTariffs } from '@/hooks/use-tariffs'
 import { gasTariffAt } from '@/lib/gas'
 import type { AccountDetails } from '@/lib/octopus'
 import { formatValue, type Tariff, type Timeslot } from '@/lib/tariff'
-import { useSettings, type ChartLayout } from '@/stores/settings'
+import { useSettings, type ChartLayout, type PlanView } from '@/stores/settings'
 
 const CHART_LAYOUTS: { value: ChartLayout; label: string }[] = [
   { value: 'separate', label: 'Separate' },
   { value: 'joint', label: 'Combined' },
 ]
+
+const PLAN_VIEWS: { value: PlanView; label: string }[] = [
+  { value: 'cards', label: 'Cards' },
+  { value: 'table', label: 'Table' },
+]
+
+type OptionToggleProps<T extends string> = {
+  label: string
+  options: { value: T; label: string }[]
+  value: T
+  onChange: (value: T) => void
+}
+
+// A pill toggle between a setting's options.
+function OptionToggle<T extends string>({ label, options, value, onChange }: OptionToggleProps<T>) {
+  return (
+    <ToggleGroup
+      aria-label={label}
+      value={[value]}
+      // Ignore deselection so one option is always active.
+      onValueChange={(values) => values[0] && onChange(values[0] as T)}
+      className="gap-0.5 rounded-full bg-muted p-0.5"
+    >
+      {options.map((option) => (
+        <ToggleGroupItem
+          key={option.value}
+          value={option.value}
+          className="rounded-full px-3 hover:bg-transparent aria-pressed:bg-secondary"
+        >
+          {option.label}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  )
+}
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -99,7 +134,7 @@ export default function SettingsPage() {
   const tariffs = tariffState.status === 'success' ? tariffState.tariffs : undefined
   const gasState = useGasTariffs()
   const gasTariff = gasState.status === 'success' ? gasTariffAt(new Date(), gasState.tariffs) : undefined
-  const { chartLayout, setChartLayout } = useSettings()
+  const { chartLayout, setChartLayout, planView, setPlanView } = useSettings()
 
   return (
     <div className="mx-auto flex w-full max-w-8xl flex-col gap-6 p-4 sm:p-8">
@@ -124,25 +159,17 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="text-lg font-bold tracking-heading">Usage</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="divide-y divide-border">
               <Row label="Import and export charts">
-                <ToggleGroup
-                  aria-label="Import and export charts"
-                  value={[chartLayout]}
-                  // Ignore deselection so one layout is always active.
-                  onValueChange={(values) => values[0] && setChartLayout(values[0] as ChartLayout)}
-                  className="gap-0.5 rounded-full bg-muted p-0.5"
-                >
-                  {CHART_LAYOUTS.map((layout) => (
-                    <ToggleGroupItem
-                      key={layout.value}
-                      value={layout.value}
-                      className="rounded-full px-3 hover:bg-transparent aria-pressed:bg-secondary"
-                    >
-                      {layout.label}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
+                <OptionToggle
+                  label="Import and export charts"
+                  options={CHART_LAYOUTS}
+                  value={chartLayout}
+                  onChange={setChartLayout}
+                />
+              </Row>
+              <Row label="Plan comparison">
+                <OptionToggle label="Plan comparison" options={PLAN_VIEWS} value={planView} onChange={setPlanView} />
               </Row>
             </CardContent>
           </Card>

@@ -34,7 +34,14 @@ The graph display for the chart was always showing a day and wasn't adjusting fo
 
 I overall wanted to improve the dashbaords level of detail and insights.
 
-possible move the import and export figures into their own graphs.
+possible move the import and export figures into their own graphs. after doing it I wasnt sure what i prefered so i decided to make a setting panel where you can toggle what view you want, with the setting saved to local storage. I think I prefer the side by side instead of two seperate ones. 
+
+CurrentTariffs as i wanted to get the tarrif from the api instead of manually enterting it. Wasnt useful as it only show the dates the agreement is place for tha tarriffs from and till. The original query it provided was looking at standard tarrif but we are on a dynamic tarrif. I needed the HalfHourlyTariff type. But sitll had the problem that it the data didnt show the times the tarrif applies only the different prices and the dates its running from. After checking with claude a third time it add an extra bit to the original with looking at the timeofusescheme in the agreements which delivered the name, active from and to times and what days. I removed the excess data i didnt need.
+
+Wanted a query for all the possible export tarrifs I can use so i can analysis which might be the best for me to use given our data.
 
 
+OUTGOING-PRIME-FIX-12M-26-06-23
+OUTGOING-VAR-24-10-26
 
+it didnt provide a way to get the times the tarrif applied from the api so rather the trying to overcomplicated it ill apply the tarrifs manually. showing current tarrif, other 2 and a custom entry one too incase a new tariff gets added that i want to compare to

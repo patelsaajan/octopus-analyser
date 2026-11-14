@@ -1,4 +1,4 @@
-import { ChartColumnIcon, SettingsIcon, SolarPanelIcon } from 'lucide-react'
+import { ChartColumnIcon, LayoutDashboardIcon, SettingsIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   Sidebar,
@@ -15,7 +15,7 @@ import {
 
 const NAV_ITEMS = [
   { to: '/', label: 'Usage', icon: ChartColumnIcon },
-  { to: '/export', label: 'Export', icon: SolarPanelIcon },
+  { to: '/overview', label: 'Plan analysis', icon: LayoutDashboardIcon },
 ]
 
 function NavLink({ to, label, icon: Icon }: { to: string; label: string; icon: typeof SettingsIcon }) {

@@ -1,7 +1,7 @@
 import { GasUsage } from '@/components/gas-usage'
 import { UsageDashboard } from '@/components/usage-dashboard'
 
-export default function HomePage() {
+export default function UsagePage() {
   return (
     <UsageDashboard
       title="Electricity usage"

@@ -1,4 +1,4 @@
-import { format, getHours, subDays } from 'date-fns'
+import { getHours } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import {
   ChartContainer,
@@ -7,7 +7,7 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart'
 import type { Reading } from '@/lib/octopus'
-import { bucketsOf, type Bucket, type Period, type PeriodMode } from '@/lib/period'
+import { BUCKET_LABELS, bucketsOf, HOUR_OF_DAY_LABELS, type Period } from '@/lib/period'
 import { formatValue, VALUE_OF, type Tariffs, type Unit } from '@/lib/tariff'
 
 export type Series = 'imported' | 'exported'
@@ -32,28 +32,6 @@ export function SeriesLegend({ series }: { series: Series[] }) {
   )
 }
 
-// How each mode labels a bar on the axis, and in full in the tooltip.
-const BUCKET_LABELS: Record<PeriodMode, { tick: (bucket: Bucket) => string; full: (bucket: Bucket) => string }> = {
-  day: {
-    tick: ({ start }) => format(start, 'HH:mm'),
-    full: ({ start, end }) => `${format(start, 'HH:mm')} to ${format(end, 'HH:mm')}`,
-  },
-  week: {
-    tick: ({ start }) => format(start, 'EEE d'),
-    full: ({ start }) => format(start, 'EEEE d MMMM'),
-  },
-  month: {
-    tick: ({ start }) => format(start, 'd MMM'),
-    full: ({ start, end }) => `${format(start, 'd')} to ${format(subDays(end, 1), 'd MMMM')}`,
-  },
-  year: {
-    tick: ({ start }) => format(start, 'MMM'),
-    full: ({ start }) => format(start, 'MMMM yyyy'),
-  },
-}
-
-const hourLabel = (hour: number) => `${String(hour % 24).padStart(2, '0')}:00`
-
 type BucketTotal = { tick: string; full: string } & Partial<Record<Series, number>>
 
 // The bars a chart draws and which one each reading falls in (-1 for none).
@@ -71,10 +49,7 @@ function periodGrouping(period: Period): Grouping {
 
 // Folds every day in the period onto one 24-hour axis, to show when energy tends to flow.
 const hourOfDayGrouping: Grouping = {
-  labels: Array.from({ length: 24 }, (_, hour) => ({
-    tick: hourLabel(hour),
-    full: `${hourLabel(hour)} to ${hourLabel(hour + 1)}`,
-  })),
+  labels: HOUR_OF_DAY_LABELS,
   indexOf: (reading) => getHours(reading.startAt),
 }
 

@@ -42,3 +42,12 @@ The current stack I am thinking of is a react + vite frontend deployed on cloudf
 Octopus provide two API option being GraphQL and a REST optioN. I plan to utilise the GraphQL because i've used it in the past and want to solidfy my knowledge in it. 
 
 
+design it was making the account box the same height as the tariff box
+
+moving graph legend so it gives more space for the graph
+
+i sent it away to build the import and it choose to use the rest api to the the other plans details. the data from the rest api was more useful 
+
+fancied a restrucutre as the import and export felt too similar to the usage tab, so i make a overview tab with the each section performance. 
+
+adding custom plan check where you can add prices for times and built up the rules incase you want to compare if you switch. 
