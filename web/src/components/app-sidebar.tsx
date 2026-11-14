@@ -1,4 +1,4 @@
-import { ChartColumnIcon, SettingsIcon } from 'lucide-react'
+import { ChartColumnIcon, SettingsIcon, SolarPanelIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   Sidebar,
@@ -13,7 +13,10 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 
-const NAV_ITEMS = [{ to: '/', label: 'Usage', icon: ChartColumnIcon }]
+const NAV_ITEMS = [
+  { to: '/', label: 'Usage', icon: ChartColumnIcon },
+  { to: '/export', label: 'Export', icon: SolarPanelIcon },
+]
 
 function NavLink({ to, label, icon: Icon }: { to: string; label: string; icon: typeof SettingsIcon }) {
   const { pathname } = useLocation()

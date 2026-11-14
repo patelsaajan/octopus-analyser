@@ -25,7 +25,7 @@ export default function SettingsPage() {
   const { chartLayout, setChartLayout } = useSettings()
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 sm:p-8">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 sm:p-8">
       <header>
         <h1 className="text-3xl font-bold tracking-heading">Settings</h1>
         <p className="text-muted-foreground">The account and tariff the dashboard uses.</p>

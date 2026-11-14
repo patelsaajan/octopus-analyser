@@ -176,7 +176,8 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
           <ChevronLeftIcon />
         </Button>
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger render={<Button variant="outline" />}>
+          {/* Fixed width (fits "27 Oct to 2 Nov 2026") so switching mode doesn't resize the button and shift the header */}
+          <PopoverTrigger render={<Button variant="outline" className="w-48 justify-start tabular-nums" />}>
             <CalendarIcon data-icon="inline-start" />
             {formatPeriod(value)}
           </PopoverTrigger>

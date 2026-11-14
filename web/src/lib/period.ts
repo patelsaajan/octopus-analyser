@@ -63,12 +63,13 @@ export function isInFuture(period: Period): boolean {
 export function formatPeriod(period: Period): string {
   const { mode, start } = period
   if (mode === 'day') return format(start, 'EEE d MMM yyyy')
-  if (mode === 'month') return format(start, 'MMMM yyyy')
+  if (mode === 'month') return format(start, 'MMM yyyy')
   if (mode === 'year') return format(start, 'yyyy')
 
+  // Kept short to fit the picker button; a week spanning New Year uses two-digit years on both ends.
   const last = subDays(periodEnd(period), 1)
-  const startFormat = isSameMonth(start, last) ? 'd' : isSameYear(start, last) ? 'd MMM' : 'd MMM yyyy'
-  return `${format(start, startFormat)} to ${format(last, 'd MMM yyyy')}`
+  if (!isSameYear(start, last)) return `${format(start, 'd MMM yy')} to ${format(last, 'd MMM yy')}`
+  return `${format(start, isSameMonth(start, last) ? 'd' : 'd MMM')} to ${format(last, 'd MMM yyyy')}`
 }
 
 // Hours of a day, days of a week, weeks of a month (clipped to the month's edges) or months of a year.

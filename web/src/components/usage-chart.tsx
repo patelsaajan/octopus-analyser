@@ -1,4 +1,4 @@
-import { format, subDays } from 'date-fns'
+import { format, getHours, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import {
   ChartContainer,
@@ -39,28 +39,51 @@ const BUCKET_LABELS: Record<PeriodMode, { tick: (bucket: Bucket) => string; full
   },
 }
 
+const hourLabel = (hour: number) => `${String(hour % 24).padStart(2, '0')}:00`
+
 type BucketTotal = { tick: string; full: string } & Partial<Record<Series, number>>
+
+// The bars a chart draws and which one each reading falls in (-1 for none).
+type Grouping = { labels: { tick: string; full: string }[]; indexOf: (reading: Reading) => number }
+
+// Every bucket in the period gets a bar, even with no readings, so the axis always spans the whole period.
+function periodGrouping(period: Period): Grouping {
+  const buckets = bucketsOf(period)
+  const labels = BUCKET_LABELS[period.mode]
+  return {
+    labels: buckets.map((bucket) => ({ tick: labels.tick(bucket), full: labels.full(bucket) })),
+    indexOf: (reading) => buckets.findIndex(({ start, end }) => start <= reading.startAt && reading.startAt < end),
+  }
+}
+
+// Folds every day in the period onto one 24-hour axis, to show when energy tends to flow.
+const hourOfDayGrouping: Grouping = {
+  labels: Array.from({ length: 24 }, (_, hour) => ({
+    tick: hourLabel(hour),
+    full: `${hourLabel(hour)} to ${hourLabel(hour + 1)}`,
+  })),
+  indexOf: (reading) => getHours(reading.startAt),
+}
 
 type UsageChartProps = {
   // One entry draws a single series; two draw them side by side on a shared scale.
   series: { key: Series; readings: Reading[] }[]
   period: Period
   unit: Unit
+  // Totals each hour of the day across the period, instead of charting the period's own buckets.
+  byHourOfDay?: boolean
 }
 
-// Every bucket in the period gets a bar, even with no readings, so the axis always spans the whole period.
-function bucketTotals({ series, period, unit }: UsageChartProps): BucketTotal[] {
-  const buckets = bucketsOf(period)
-  const labels = BUCKET_LABELS[period.mode]
-  const totals: BucketTotal[] = buckets.map((bucket) => ({
-    tick: labels.tick(bucket),
-    full: labels.full(bucket),
+function bucketTotals({ series, period, unit, byHourOfDay }: UsageChartProps): BucketTotal[] {
+  const { labels, indexOf } = byHourOfDay ? hourOfDayGrouping : periodGrouping(period)
+  const totals: BucketTotal[] = labels.map((label) => ({
+    ...label,
     ...Object.fromEntries(series.map(({ key }) => [key, 0])),
   }))
 
   for (const { key, readings } of series) {
     for (const reading of readings) {
-      const index = buckets.findIndex(({ start, end }) => start <= reading.startAt && reading.startAt < end)
+      const index = indexOf(reading)
       if (index !== -1) totals[index][key] = (totals[index][key] ?? 0) + SERIES[key].valueOf(reading, unit)
     }
   }
@@ -82,8 +105,8 @@ export function UsageChart(props: UsageChartProps) {
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          // Label every other hour on a day; otherwise let Recharts drop labels only when they collide.
-          interval={props.period.mode === 'day' ? 1 : 'preserveEnd'}
+          // Label every other hour on an hourly axis; otherwise let Recharts drop labels only when they collide.
+          interval={props.byHourOfDay || props.period.mode === 'day' ? 1 : 'preserveEnd'}
         />
         <YAxis
           tickLine={false}
