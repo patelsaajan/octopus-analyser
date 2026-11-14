@@ -34,11 +34,32 @@ async function getToken(apiKey: string | undefined): Promise<string> {
   return token
 }
 
-// Fills in $accountNumber so the browser never needs to know it.
-function withAccountNumber(rawBody: string, accountNumber: string | undefined): string {
-  if (!accountNumber) return rawBody
-  const body = JSON.parse(rawBody)
-  return JSON.stringify({ ...body, variables: { ...body.variables, accountNumber } })
+type Refusal = { status: number; message: string }
+
+// Turns the browser's request into the one sent to Octopus, or says why it won't be sent. The
+// dashboard only reads, so mutations are refused: nobody who can reach the proxy can use it to
+// change the account. Also fills in $accountNumber so the browser never needs to know it.
+function readOnlyBody(rawBody: string, accountNumber: string | undefined): { body: string } | Refusal {
+  let request: { query?: unknown; variables?: Record<string, unknown>; operationName?: unknown } | null
+  try {
+    request = JSON.parse(rawBody)
+  } catch {
+    return { status: 400, message: 'Expected a JSON body.' }
+  }
+  // Rules out a batch (an array of queries) as well as anything malformed.
+  if (typeof request !== 'object' || request === null || Array.isArray(request) || typeof request.query !== 'string') {
+    return { status: 400, message: 'Expected a single GraphQL query.' }
+  }
+  // Checked on the parsed text, where JSON escapes can no longer disguise the keyword. A query that
+  // only mentions the word is refused too, which is the safe way round.
+  if (/\bmutation\b/.test(request.query)) {
+    return { status: 403, message: 'This proxy is read-only, so mutations are not forwarded.' }
+  }
+  const { query, variables, operationName } = request
+  // Only the fields GraphQL defines are passed on.
+  return {
+    body: JSON.stringify({ query, operationName, variables: accountNumber ? { ...variables, accountNumber } : variables }),
+  }
 }
 
 // Production counterpart of server/octopus-proxy.ts: proxies /graphql to Octopus with a Kraken
@@ -48,11 +69,16 @@ export default {
     if (new URL(request.url).pathname !== '/graphql') return env.ASSETS.fetch(request)
     if (request.method !== 'POST') return new Response(null, { status: 405 })
 
+    const forward = readOnlyBody(await request.text(), env.OCTOPUS_ACCOUNT_NUMBER)
+    if ('status' in forward) {
+      return Response.json({ errors: [{ message: forward.message }] }, { status: forward.status })
+    }
+
     try {
       const upstream = await fetch(OCTOPUS_GRAPHQL_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: await getToken(env.OCTOPUS_API_KEY) },
-        body: withAccountNumber(await request.text(), env.OCTOPUS_ACCOUNT_NUMBER),
+        body: forward.body,
       })
       return new Response(upstream.body, {
         status: upstream.status,

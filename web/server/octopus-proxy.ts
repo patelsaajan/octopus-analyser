@@ -15,11 +15,32 @@ function readBody(req: IncomingMessage): Promise<string> {
   })
 }
 
-// Fills in $accountNumber so the browser never needs to know it.
-function withAccountNumber(rawBody: string, accountNumber: string | undefined): string {
-  if (!accountNumber) return rawBody
-  const body = JSON.parse(rawBody)
-  return JSON.stringify({ ...body, variables: { ...body.variables, accountNumber } })
+type Refusal = { status: number; message: string }
+
+// Turns the browser's request into the one sent to Octopus, or says why it won't be sent. The
+// dashboard only reads, so mutations are refused: nobody who can reach the proxy can use it to
+// change the account. Also fills in $accountNumber so the browser never needs to know it.
+function readOnlyBody(rawBody: string, accountNumber: string | undefined): { body: string } | Refusal {
+  let request: { query?: unknown; variables?: Record<string, unknown>; operationName?: unknown } | null
+  try {
+    request = JSON.parse(rawBody)
+  } catch {
+    return { status: 400, message: 'Expected a JSON body.' }
+  }
+  // Rules out a batch (an array of queries) as well as anything malformed.
+  if (typeof request !== 'object' || request === null || Array.isArray(request) || typeof request.query !== 'string') {
+    return { status: 400, message: 'Expected a single GraphQL query.' }
+  }
+  // Checked on the parsed text, where JSON escapes can no longer disguise the keyword. A query that
+  // only mentions the word is refused too, which is the safe way round.
+  if (/\bmutation\b/.test(request.query)) {
+    return { status: 403, message: 'This proxy is read-only, so mutations are not forwarded.' }
+  }
+  const { query, variables, operationName } = request
+  // Only the fields GraphQL defines are passed on.
+  return {
+    body: JSON.stringify({ query, operationName, variables: accountNumber ? { ...variables, accountNumber } : variables }),
+  }
 }
 
 // Dev-only stand-in for the production backend: proxies /graphql to Octopus with a Kraken
@@ -70,11 +91,19 @@ export function octopusProxy(apiKey: string | undefined, accountNumber: string |
           return
         }
 
+        const forward = readOnlyBody(await readBody(req), accountNumber)
+        if ('status' in forward) {
+          res.statusCode = forward.status
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ errors: [{ message: forward.message }] }))
+          return
+        }
+
         try {
           const upstream = await fetch(OCTOPUS_GRAPHQL_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: await getToken() },
-            body: withAccountNumber(await readBody(req), accountNumber),
+            body: forward.body,
           })
           res.statusCode = upstream.status
           res.setHeader('Content-Type', upstream.headers.get('content-type') ?? 'application/json')

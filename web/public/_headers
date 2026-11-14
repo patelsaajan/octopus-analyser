@@ -1,4 +1,9 @@
 # Applied by Cloudflare to every static asset. Backs up robots.txt and the robots meta tag
 # for files that have no HTML head, such as images.
+#
+# The Content-Security-Policy lets the page run only its own scripts and talk only to itself and
+# Octopus's public pricing API, so an injected script has nowhere to send household data. Inline
+# styles are allowed because the charts and UI components set them.
 /*
   X-Robots-Tag: noindex, nofollow, noarchive
+  Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.octopus.energy; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
