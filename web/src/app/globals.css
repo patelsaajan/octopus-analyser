@@ -1,0 +1,98 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/figtree";
+@import "./components.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Octopus-style dark theme; see design.md for where each value comes from. */
+:root {
+  /* Surfaces: elevation comes from stepping purples, not shadows */
+  --background: #180048;
+  --card: #100030;
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --muted: #2d1a83;
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
+
+  /* Text: azure rather than pure white */
+  --foreground: #f0ffff;
+  --muted-foreground: #a49fc8;
+  --border: #a49fc833;
+  --input: var(--border);
+  --ring: #f0ffff;
+
+  /* Brand accents */
+  --primary: #f050f8;
+  --primary-foreground: #100030;
+  --secondary: #5840ff;
+  --secondary-foreground: var(--foreground);
+  --destructive: #ff3e68;
+
+  /* Charts: import is the brand pink rather than design.md's #fa98ff, which sits too close to cyan for deutan vision */
+  --chart-import: #f050f8;
+  --chart-export: #60f0f8;
+  --chart-grid: #5a537e;
+
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+
+  /* Octopus headings run at -1%, small labels at +1% */
+  --tracking-heading: -0.01em;
+  --tracking-label: 0.01em;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-import: var(--chart-import);
+  --color-chart-export: var(--chart-export);
+  --color-chart-grid: var(--chart-grid);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+  html {
+    @apply font-sans antialiased;
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
