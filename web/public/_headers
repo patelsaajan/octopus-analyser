@@ -1,0 +1,4 @@
+# Applied by Cloudflare to every static asset. Backs up robots.txt and the robots meta tag
+# for files that have no HTML head, such as images.
+/*
+  X-Robots-Tag: noindex, nofollow, noarchive

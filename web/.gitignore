@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Wrangler config (copied from wrangler.example.jsonc by scripts/deploy.sh)
+wrangler.jsonc
+.wrangler
+.dev.vars*
