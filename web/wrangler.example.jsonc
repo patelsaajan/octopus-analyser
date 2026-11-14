@@ -1,0 +1,25 @@
+// Template for wrangler.jsonc, which is gitignored. scripts/deploy.sh copies this file to
+// wrangler.jsonc on first run and fills in the domain, which stays out of git. Edit the copy
+// for anything else specific to your Cloudflare account.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "octopus-analyser",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  // Uncomment if your Cloudflare login has access to more than one account.
+  // "account_id": "<your Cloudflare account id>",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Client-side routes (e.g. /usage) fall back to index.html.
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/graphql"]
+  },
+  // The zone for this domain must be on the same Cloudflare account; the DNS record and
+  // certificate are created on deploy.
+  "routes": [{ "pattern": "<your-domain>", "custom_domain": true }],
+  // Only serve from the custom domain, so Cloudflare Access on that hostname cannot be bypassed.
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true }
+}

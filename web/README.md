@@ -30,3 +30,14 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+## Deploying
+
+The app deploys to Cloudflare Workers on a custom domain: static assets plus a small Worker (`worker/index.ts`) that proxies `/graphql` to Octopus.
+
+```sh
+pnpm exec wrangler login   # once
+pnpm run deploy            # `pnpm deploy` is a different, built-in pnpm command
+```
+
+`scripts/deploy.sh` copies `wrangler.example.jsonc` to the gitignored `wrangler.jsonc` on first run (asking for the domain, which is kept out of git), prompts for the Octopus API key and account number, builds, and uploads both values as Worker secrets with the deploy. Leave a prompt blank to keep the stored secret. Extra arguments go to Wrangler, e.g. `pnpm run deploy --dry-run`.
