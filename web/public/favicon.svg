@@ -1,16 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <g fill="none" stroke="#f050f8" stroke-linecap="round" stroke-width="7">
-    <path d="M17 45c-3 6-7 8-11 7"/>
-    <path d="M26 49c0 4-1 7-4 9"/>
-    <path d="M38 49c0 4 1 7 4 9"/>
-    <path d="M47 45c2 6 6 9 10 6c2-2 1-5-2-4"/>
+  <defs>
+    <radialGradient id="body" cx="0.38" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#ff9cfc"/>
+      <stop offset="0.45" stop-color="#f050f8"/>
+      <stop offset="1" stop-color="#c22ed6"/>
+    </radialGradient>
+    <linearGradient id="hat" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a23a0"/>
+      <stop offset="1" stop-color="#100030"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke-linecap="round">
+    <g stroke="#a824c0" stroke-width="6">
+      <path d="M20 44C18 52 14 56 9.5 55.5"/>
+      <path d="M44 44C46 52 50 56 54.5 55.5"/>
+    </g>
+    <g stroke="#f050f8" stroke-width="6.5">
+      <path d="M15 41C12.5 49 6.5 52 5.5 45"/>
+      <path d="M26.5 47C26.5 52 25.5 56 21.5 58"/>
+      <path d="M37.5 47C37.5 52 38.5 56 42.5 58"/>
+      <path d="M49 41C51.5 49 57.5 52 58.5 45"/>
+    </g>
   </g>
-  <path fill="#f050f8" d="M12 37c0-10 9-17 20-17s20 7 20 17c0 9-8 14-20 14s-20-5-20-14z"/>
-  <path fill="none" stroke="#100030" stroke-linecap="round" stroke-width="2.5" d="M13 41l38-14"/>
-  <ellipse cx="24" cy="36" fill="#100030" rx="5.5" ry="5"/>
-  <circle cx="40" cy="37" r="5" fill="#f0ffff"/>
-  <circle cx="41" cy="38" r="2.5" fill="#100030"/>
-  <path fill="none" stroke="#100030" stroke-linecap="round" stroke-width="2.5" d="M27 45q5 3 10 0"/>
-  <path fill="#100030" stroke="#60f0f8" stroke-linejoin="round" stroke-width="2.5" d="M5 24c9 0 14-15 27-15s18 15 27 15c-8 5-46 5-54 0z"/>
-  <circle cx="32" cy="17" r="3" fill="#f0ffff"/>
+  <path fill="url(#body)" d="M32 16c13 0 22 8 22 18c0 9-5.5 16-13 17H23c-7.5-1-13-8-13-17c0-10 9-18 22-18z"/>
+  <path fill="none" stroke="#100030" stroke-linecap="round" stroke-width="2.2" d="M10.5 38.5L53.5 30.5"/>
+  <path fill="#100030" d="M16.5 33.5q6.5-2 13 0q1 7.5-6.5 11q-7.5-3.5-6.5-11z"/>
+  <circle cx="41" cy="38" r="5.8" fill="#f0ffff"/>
+  <circle cx="42" cy="38.8" r="3" fill="#100030"/>
+  <circle cx="43.2" cy="37.5" r="1" fill="#f0ffff"/>
+  <path fill="none" stroke="#100030" stroke-linecap="round" stroke-width="2.2" d="M28 46.5q5.5 3.5 11-0.5"/>
+  <path fill="url(#hat)" stroke="#60f0f8" stroke-linejoin="round" stroke-width="2" d="M3.5 21.5C10 23 15 18 19 13C22.5 8.5 26.5 6 32 6C37.5 6 41.5 8.5 45 13C49 18 54 23 60.5 21.5C57 27 46 29.5 32 29.5C18 29.5 7 27 3.5 21.5Z"/>
+  <path fill="#f0ffff" d="M32 11.5a4.2 4.2 0 0 1 4.2 4.2c0 1.5-.7 2.6-1.7 3.3v2.2h-5v-2.2c-1-.7-1.7-1.8-1.7-3.3A4.2 4.2 0 0 1 32 11.5z"/>
+  <circle cx="30.3" cy="16" r="1.1" fill="#100030"/>
+  <circle cx="33.7" cy="16" r="1.1" fill="#100030"/>
 </svg>
