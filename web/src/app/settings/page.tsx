@@ -157,7 +157,7 @@ export default function SettingsPage() {
 
           <Card className="rounded-2xl ring-0">
             <CardHeader>
-              <CardTitle className="text-lg font-bold tracking-heading">Usage</CardTitle>
+              <CardTitle className="text-lg font-bold tracking-heading">Display</CardTitle>
             </CardHeader>
             <CardContent className="divide-y divide-border">
               <Row label="Import and export charts">
