@@ -5,7 +5,7 @@ import { rateAt } from '@/lib/tariff'
 // One stretch of the day at one price in pence per kWh. A band starts where the previous one ended (the first at
 // midnight) and runs until its own `until` ("HH:mm"); the last band's `until` is "00:00", the following midnight.
 // Chaining them this way means a plan always covers the whole day with no gaps or overlaps.
-export type CustomBand = { until: string; rate: number }
+type CustomBand = { until: string; rate: number }
 
 // A plan the user has typed in to compare against, with its standing charge in pence per day (0 for export).
 export type CustomPlan = { id: string; section: Section; name: string; bands: CustomBand[]; standingCharge: number }
@@ -43,7 +43,7 @@ export function priceCustomPlan(readings: Reading[], plan: CustomPlan): Priced {
     pence += reading.kwh * rateAt(reading.startAt, tariff)
     pricedKwh += reading.kwh
   }
-  return { pounds: pence / 100, pricedKwh, unpricedKwh: 0, launchPricedKwh: 0 }
+  return { pounds: pence / 100, pricedKwh, unpricedKwh: 0 }
 }
 
 // The plan's flat standing charge as an open-ended rate period, the shape standingChargeTotal takes.

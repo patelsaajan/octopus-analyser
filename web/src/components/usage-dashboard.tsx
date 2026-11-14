@@ -8,11 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useTariffs } from '@/hooks/use-tariffs'
 import { useUsage } from '@/hooks/use-usage'
 import type { Reading } from '@/lib/octopus'
-import { periodContaining, type Period, type PeriodMode } from '@/lib/period'
+import { BUCKET_NAMES, periodContaining, type Period } from '@/lib/period'
 import { VALUE_OF, type Tariffs, type Unit } from '@/lib/tariff'
 import { useSettings, type ChartLayout } from '@/stores/settings'
-
-const BUCKET_NAMES: Record<PeriodMode, string> = { day: 'hour', week: 'day', month: 'week', year: 'month' }
 
 const CHART_COPY: Record<Series, { title: string; verb: string }> = {
   imported: { title: 'Imported', verb: 'imported from' },
@@ -93,7 +91,7 @@ function ChartCards({ layout, ...props }: ChartCardsProps) {
 }
 
 // What the dashboard has loaded for its selected period; readings and tariffs are undefined until they arrive.
-export type DashboardData = {
+type DashboardData = {
   period: Period
   unit: Unit
   readings: Record<Series, Reading[]> | undefined

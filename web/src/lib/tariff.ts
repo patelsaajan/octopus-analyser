@@ -59,11 +59,11 @@ function value(reading: Reading, unit: Unit, tariff: Tariff): number {
   return unit === 'kwh' ? reading.kwh : (reading.kwh * rateAt(reading.startAt, tariff)) / 100
 }
 
-export function importValue(reading: Reading, unit: Unit, tariffs: Tariffs): number {
+function importValue(reading: Reading, unit: Unit, tariffs: Tariffs): number {
   return value(reading, unit, tariffs.import)
 }
 
-export function exportValue(reading: Reading, unit: Unit, tariffs: Tariffs): number {
+function exportValue(reading: Reading, unit: Unit, tariffs: Tariffs): number {
   return value(reading, unit, tariffs.export)
 }
 

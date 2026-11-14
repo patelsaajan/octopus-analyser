@@ -238,7 +238,6 @@ export function TariffAnalysis({ section, period, readings, current }: TariffAna
                 pounds: current.unitPounds,
                 pricedKwh: readings.reduce((total, reading) => total + reading.kwh, 0),
                 unpricedKwh: 0,
-                launchPricedKwh: 0,
               }
             : priceReadings(readings, plan.unitRates)
           const standing = standingChargeTotal(period, plan.standingCharges)

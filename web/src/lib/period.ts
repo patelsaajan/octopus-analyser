@@ -109,3 +109,34 @@ export function bucketsOf(period: Period): Bucket[] {
   }[period.mode]()
   return starts.map((start, i) => ({ start, end: starts[i + 1] ?? end }))
 }
+
+// What one bar of a period's chart covers: a day is charted by the hour, a week by the day, and so on.
+export const BUCKET_NAMES: Record<PeriodMode, string> = { day: 'hour', week: 'day', month: 'week', year: 'month' }
+
+// How each mode labels a bar on the axis, and in full in the tooltip.
+export const BUCKET_LABELS: Record<PeriodMode, { tick: (bucket: Bucket) => string; full: (bucket: Bucket) => string }> = {
+  day: {
+    tick: ({ start }) => format(start, 'HH:mm'),
+    full: ({ start, end }) => `${format(start, 'HH:mm')} to ${format(end, 'HH:mm')}`,
+  },
+  week: {
+    tick: ({ start }) => format(start, 'EEE d'),
+    full: ({ start }) => format(start, 'EEEE d MMMM'),
+  },
+  month: {
+    tick: ({ start }) => format(start, 'd MMM'),
+    full: ({ start, end }) => `${format(start, 'd')} to ${format(subDays(end, 1), 'd MMMM')}`,
+  },
+  year: {
+    tick: ({ start }) => format(start, 'MMM'),
+    full: ({ start }) => format(start, 'MMMM yyyy'),
+  },
+}
+
+const hourLabel = (hour: number) => `${String(hour % 24).padStart(2, '0')}:00`
+
+// Axis and tooltip labels for the 24 bars of a time-of-day chart.
+export const HOUR_OF_DAY_LABELS = Array.from({ length: 24 }, (_, hour) => ({
+  tick: hourLabel(hour),
+  full: `${hourLabel(hour)} to ${hourLabel(hour + 1)}`,
+}))

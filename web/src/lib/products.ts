@@ -8,7 +8,7 @@ const REST_URL = 'https://api.octopus.energy/v1'
 // Import plans the current one is compared against. Export asks the API which plans the meter can switch to, but
 // for import that list leaves out every plan that needs kit to join (Go, Cosy, Agile, Flux), so these are chosen
 // by hand instead.
-export const IMPORT_COMPARISON_PRODUCTS = [
+const IMPORT_COMPARISON_PRODUCTS = [
   'VAR-22-11-01',
   'GO-VAR-22-10-14',
   'AGILE-24-10-01',
@@ -95,7 +95,7 @@ export async function fetchRates(
 
 // A newly launched fixed plan publishes one open-ended rate from its launch, so it has no rate for earlier dates.
 // Its price is fixed, so that rate is a fair stand-in for earlier dates too; time-of-use plans get no such stand-in.
-export function launchRate(rates: RatePeriod[]): RatePeriod | undefined {
+function launchRate(rates: RatePeriod[]): RatePeriod | undefined {
   return rates.length === 1 && rates[0].to === null ? rates[0] : undefined
 }
 
@@ -119,8 +119,7 @@ function rateAt(at: Date, rates: RatePeriod[]): number | undefined {
   return rate && (rate.to === null || time < rate.to.getTime()) ? rate.rate : undefined
 }
 
-// launchPricedKwh is the part of pricedKwh charged at a fixed plan's launch rate because it came before the launch.
-export type Priced = { pounds: number; pricedKwh: number; unpricedKwh: number; launchPricedKwh: number }
+export type Priced = { pounds: number; pricedKwh: number; unpricedKwh: number }
 
 // Prices each reading at the rate in force when it started, or a fixed plan's launch rate before it launched. Other
 // readings with no published rate are counted separately rather than priced at zero.
@@ -129,13 +128,9 @@ export function priceReadings(readings: Reading[], rates: RatePeriod[]): Priced 
   let pence = 0
   let pricedKwh = 0
   let unpricedKwh = 0
-  let launchPricedKwh = 0
   for (const reading of readings) {
     let rate = rateAt(reading.startAt, rates)
-    if (rate === undefined && launch && reading.startAt < launch.from) {
-      rate = launch.rate
-      launchPricedKwh += reading.kwh
-    }
+    if (rate === undefined && launch && reading.startAt < launch.from) rate = launch.rate
     if (rate === undefined) {
       unpricedKwh += reading.kwh
     } else {
@@ -143,7 +138,7 @@ export function priceReadings(readings: Reading[], rates: RatePeriod[]): Priced 
       pricedKwh += reading.kwh
     }
   }
-  return { pounds: pence / 100, pricedKwh, unpricedKwh, launchPricedKwh }
+  return { pounds: pence / 100, pricedKwh, unpricedKwh }
 }
 
 // Standing charges in pounds for each day of the period that has started, at the charge in force that day.
