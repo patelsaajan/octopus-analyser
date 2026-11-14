@@ -1,21 +1,29 @@
-import { endOfWeek, startOfWeek, subWeeks } from 'date-fns'
+import { subWeeks } from 'date-fns'
 import { useState } from 'react'
-import type { DateRange } from 'react-day-picker'
-import { DateRangePicker } from '@/components/date-range-picker'
+import { PeriodPicker } from '@/components/period-picker'
 import { UnitToggle } from '@/components/unit-toggle'
-import { UsageChart } from '@/components/usage-chart'
+import { UsageChart, type Series } from '@/components/usage-chart'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useUsage } from '@/hooks/use-usage'
 import type { Reading } from '@/lib/octopus'
+import { periodContaining, type Period, type PeriodMode } from '@/lib/period'
 import { exportValue, formatValue, importValue, RATES, type Unit } from '@/lib/tariff'
+import { useSettings } from '@/stores/settings'
 
-function previousWeek(): DateRange {
-  const lastWeek = subWeeks(new Date(), 1)
-  return {
-    from: startOfWeek(lastWeek, { weekStartsOn: 1 }),
-    to: endOfWeek(lastWeek, { weekStartsOn: 1 }),
-  }
+const BUCKET_NAMES: Record<PeriodMode, string> = { day: 'hour', week: 'day', month: 'week', year: 'month' }
+
+const CHART_COPY: Record<Series, { title: string; verb: string; rates: string }> = {
+  imported: {
+    title: 'Imported',
+    verb: 'imported from',
+    rates: `Priced at ${RATES.import.offPeak}p/kWh from 11:30pm to 5:30am and ${RATES.import.standard}p otherwise.`,
+  },
+  exported: {
+    title: 'Exported',
+    verb: 'exported to',
+    rates: `Paid at ${RATES.export.peak}p/kWh from 4pm to 7pm and ${RATES.export.standard}p otherwise.`,
+  },
 }
 
 const sum = (readings: Reading[], valueOf: (reading: Reading) => number) =>
@@ -45,11 +53,49 @@ function StatTile({ title, value, unit }: { title: string; value: number | undef
   )
 }
 
+type ChartCardProps = {
+  series: Series[]
+  readings: Record<Series, Reading[]> | undefined
+  period: Period
+  unit: Unit
+}
+
+function ChartCard({ series, readings, period, unit }: ChartCardProps) {
+  const copies = series.map((key) => CHART_COPY[key])
+  const bucketName = BUCKET_NAMES[period.mode]
+  const title = copies.map((copy) => copy.title).join(' and ')
+  // Joined as "imported from and exported to", so one sentence covers both series.
+  const verbs = copies.map((copy) => copy.verb).join(' and ')
+
+  return (
+    <Card className="rounded-2xl ring-0">
+      <CardHeader>
+        <CardTitle className="text-lg font-bold tracking-heading">
+          {title} each {bucketName}
+        </CardTitle>
+        <CardDescription>
+          {unit === 'kwh'
+            ? `Electricity ${verbs} the grid each ${bucketName}, in kWh.`
+            : copies.map((copy) => copy.rates).join(' ')}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {readings ? (
+          <UsageChart series={series.map((key) => ({ key, readings: readings[key] }))} period={period} unit={unit} />
+        ) : (
+          <Skeleton className="h-72 w-full bg-muted" />
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function HomePage() {
-  const [range, setRange] = useState<DateRange | undefined>(previousWeek)
+  const [period, setPeriod] = useState(() => periodContaining('week', subWeeks(new Date(), 1)))
   const [unit, setUnit] = useState<Unit>('kwh')
-  const usage = useUsage(range)
+  const usage = useUsage(period)
   const loaded = usage.status === 'success' ? usage : undefined
+  const chartLayout = useSettings((state) => state.chartLayout)
 
   const imported = loaded && sum(loaded.imported, (reading) => importValue(reading, unit))
   const exported = loaded && sum(loaded.exported, (reading) => exportValue(reading, unit))
@@ -62,9 +108,9 @@ export default function HomePage() {
           <h1 className="text-3xl font-bold tracking-heading">Electricity usage</h1>
           <p className="text-muted-foreground">Half-hourly grid import and export from the smart meter.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <UnitToggle value={unit} onChange={setUnit} />
-          <DateRangePicker value={range} onChange={setRange} />
+          <PeriodPicker value={period} onChange={setPeriod} />
         </div>
       </header>
 
@@ -84,23 +130,14 @@ export default function HomePage() {
         />
       </div>
 
-      <Card className="rounded-2xl ring-0">
-        <CardHeader>
-          <CardTitle className="text-lg font-bold tracking-heading">Daily totals</CardTitle>
-          <CardDescription>
-            {unit === 'kwh'
-              ? 'Electricity imported from and exported to the grid each day, in kWh.'
-              : `Import at ${RATES.import.offPeak}p/kWh from 11:30pm to 5:30am and ${RATES.import.standard}p otherwise. Export at ${RATES.export.peak}p/kWh from 4pm to 7pm and ${RATES.export.standard}p otherwise.`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loaded ? (
-            <UsageChart imported={loaded.imported} exported={loaded.exported} unit={unit} />
-          ) : (
-            <Skeleton className="h-72 w-full bg-muted" />
-          )}
-        </CardContent>
-      </Card>
+      {chartLayout === 'joint' ? (
+        <ChartCard series={['imported', 'exported']} readings={loaded} period={period} unit={unit} />
+      ) : (
+        <>
+          <ChartCard series={['imported']} readings={loaded} period={period} unit={unit} />
+          <ChartCard series={['exported']} readings={loaded} period={period} unit={unit} />
+        </>
+      )}
     </div>
   )
 }

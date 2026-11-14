@@ -25,11 +25,22 @@ function withAccountNumber(rawBody: string, accountNumber: string | undefined): 
 // Dev-only stand-in for the production backend: proxies /graphql to Octopus with a Kraken
 // token obtained from the API key, so the key stays on the server and never reaches the browser.
 export function octopusProxy(apiKey: string | undefined, accountNumber: string | undefined): Plugin {
-  let cached: { token: string; expiresAt: number } | undefined
+  let cached: { token: Promise<string>; expiresAt: number } | undefined
 
-  async function getToken(): Promise<string> {
-    if (!apiKey) throw new Error('OCTOPUS_API_KEY is not set. Add it to web/.env and restart the dev server.')
+  // Caches the request itself, so a burst of parallel queries shares one token fetch.
+  function getToken(): Promise<string> {
     if (cached && cached.expiresAt > Date.now()) return cached.token
+    const token = requestToken()
+    cached = { token, expiresAt: Date.now() + TOKEN_TTL_MS }
+    // A failed fetch is dropped so the next query retries instead of reusing the rejection.
+    token.catch(() => {
+      if (cached?.token === token) cached = undefined
+    })
+    return token
+  }
+
+  async function requestToken(): Promise<string> {
+    if (!apiKey) throw new Error('OCTOPUS_API_KEY is not set. Add it to web/.env and restart the dev server.')
 
     const res = await fetch(OCTOPUS_GRAPHQL_URL, {
       method: 'POST',
@@ -42,8 +53,6 @@ export function octopusProxy(apiKey: string | undefined, accountNumber: string |
     const json: { data?: { obtainKrakenToken?: { token: string } }; errors?: unknown } = await res.json()
     const token = json.data?.obtainKrakenToken?.token
     if (!token) throw new Error(`Failed to obtain Kraken token: ${JSON.stringify(json?.errors ?? json)}`)
-
-    cached = { token, expiresAt: Date.now() + TOKEN_TTL_MS }
     return token
   }
 

@@ -22,6 +22,19 @@ To test the endpoint I asked claude to build a Octopus friendly GraphQL endpoint
 
 if its not in there then it adds it in and if it is then it exits early out of a check. It feels a little excessive and alot of checks but its only test code so not worth my time fixing it. 
 
+supplyPointsInterface was a good starting point but I learnt you could not filter or add a where clause into GraghQL. This was told to me via claude and it suggested that I use the measurements query instead. Asking it to provide a sample query for me to check if the response was correct. It turned out to be better then expected as the measurements data can provide both the import and export numbers in time intervals that you request. 
 
-Error: Failed to obtain Kraken token: [{"message":"Variable '$key' of required type 'String!' was not provided.","locations":[{"line":1,"column":11}]}]
+So I decided now might be a good time to build a dashboard. I ask claude to sent an agent off to copy the design lanuage of Octopus and put it into a design.md file. 
+
+While that was happening I asked for a new react + vite project folder called 'web' in the root directory that will be utilised for the dashboard. The dashboard should be simple, show the import, export numbers in a graph, a choice of kWh or £ for the figures and a date picker which is a calender popup. 
+
+Utilising the Octopus app i verified if the data was correct which it was.
+
+The graph display for the chart was always showing a day and wasn't adjusting for granular details. So i asked for day timeframes to be shown hourly, weekly timeframes to show daily and etc etc. 
+
+I overall wanted to improve the dashbaords level of detail and insights.
+
+possible move the import and export figures into their own graphs.
+
+
 
