@@ -9,6 +9,8 @@ export type Timeslot = { timeslot: string; activeFrom: string; activeTo: string;
 // A tariff on the account's current agreement, as read from the API.
 export type Tariff = {
   name: string
+  // The meter point the agreement is on.
+  mpan: string
   // e.g. OUTGOING-PRIME-FIX-12M-26-06-23, and E-1R-<product>-K, whose last letter is the region.
   productCode: string
   tariffCode: string
@@ -44,7 +46,7 @@ function inSlot(minutes: number, from: number, to: number): boolean {
   return from < to ? minutes >= from && minutes < to : minutes >= from || minutes < to
 }
 
-export function rateAt(startAt: Date, tariff: Tariff): number {
+export function rateAt(startAt: Date, tariff: Pick<Tariff, 'name' | 'timezone' | 'timeslots'>): number {
   const minutes = minutesOf(timeOfDay(startAt, tariff.timezone))
   const slot = tariff.timeslots.find((slot) => inSlot(minutes, minutesOf(slot.activeFrom), minutesOf(slot.activeTo)))
   // The slots cover the whole day, so a miss means the API returned something unexpected.

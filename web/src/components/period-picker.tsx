@@ -7,7 +7,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
-  formatPeriod,
+  describePeriod,
   isInFuture,
   periodContaining,
   periodEnd,
@@ -146,8 +146,10 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
     disabled: { after: today },
   } as const
 
+  const { title, caption } = describePeriod(value)
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <ToggleGroup
         aria-label="Group by"
         value={[value.mode]}
@@ -166,10 +168,12 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
         ))}
       </ToggleGroup>
 
+      {/* The selected dates are the panel's main content: large, with the arrows stepping either side of them */}
       <div className="flex w-full items-center gap-1">
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-lg"
+          className="rounded-full"
           aria-label={`Previous ${value.mode}`}
           onClick={() => onChange(shiftPeriod(value, -1))}
         >
@@ -177,9 +181,14 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
         </Button>
         <Popover open={open} onOpenChange={setOpen}>
           {/* Fills the row between the arrows, so its width doesn't change with the label */}
-          <PopoverTrigger render={<Button variant="outline" className="min-w-0 flex-1 justify-start tabular-nums" />}>
-            <CalendarIcon data-icon="inline-start" />
-            {formatPeriod(value)}
+          <PopoverTrigger
+            render={<Button variant="ghost" className="h-auto min-w-0 flex-1 flex-col gap-0.5 rounded-xl py-2" />}
+          >
+            <span className="text-xl font-bold tracking-heading tabular-nums">{title}</span>
+            <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+              <CalendarIcon className="size-3.5" aria-hidden />
+              {caption}
+            </span>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="center">
             {value.mode === 'day' && (
@@ -199,7 +208,8 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
         </Popover>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-lg"
+          className="rounded-full"
           aria-label={`Next ${value.mode}`}
           onClick={() => onChange(next)}
           disabled={isInFuture(next)}

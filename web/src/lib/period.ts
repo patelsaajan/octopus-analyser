@@ -3,6 +3,10 @@ import {
   addMonths,
   addWeeks,
   addYears,
+  differenceInCalendarDays,
+  differenceInCalendarMonths,
+  differenceInCalendarWeeks,
+  differenceInCalendarYears,
   eachDayOfInterval,
   eachHourOfInterval,
   eachMonthOfInterval,
@@ -60,16 +64,37 @@ export function isInFuture(period: Period): boolean {
   return period.start > new Date()
 }
 
-export function formatPeriod(period: Period): string {
-  const { mode, start } = period
-  if (mode === 'day') return format(start, 'EEE d MMM yyyy')
-  if (mode === 'month') return format(start, 'MMM yyyy')
-  if (mode === 'year') return format(start, 'yyyy')
+const differenceIn: Record<PeriodMode, (later: Date, earlier: Date) => number> = {
+  day: differenceInCalendarDays,
+  week: (later, earlier) => differenceInCalendarWeeks(later, earlier, WEEK_OPTIONS),
+  month: differenceInCalendarMonths,
+  year: differenceInCalendarYears,
+}
 
-  // Kept short to fit the picker button; a week spanning New Year uses two-digit years on both ends.
+// Where a period sits relative to now: "Today", "Last week", "3 months ago".
+function relativeLabel({ mode, start }: Period, now: Date): string {
+  const ago = differenceIn[mode](now, start)
+  if (ago < 0) return 'Upcoming'
+  if (mode === 'day') return ago === 0 ? 'Today' : ago === 1 ? 'Yesterday' : `${ago} days ago`
+  return ago === 0 ? `This ${mode}` : ago === 1 ? `Last ${mode}` : `${ago} ${mode}s ago`
+}
+
+// A short title for the period ("2 to 8 Nov", "November", "2026") and a caption placing it in time. The title
+// leaves the year out to stay short, so the caption adds it whenever it isn't the current year.
+export function describePeriod(period: Period, now = new Date()): { title: string; caption: string } {
+  const { mode, start } = period
   const last = subDays(periodEnd(period), 1)
-  if (!isSameYear(start, last)) return `${format(start, 'd MMM yy')} to ${format(last, 'd MMM yy')}`
-  return `${format(start, isSameMonth(start, last) ? 'd' : 'd MMM')} to ${format(last, 'd MMM yyyy')}`
+  const title = {
+    day: () => format(start, 'EEE d MMM'),
+    week: () => `${format(start, isSameMonth(start, last) ? 'd' : 'd MMM')} to ${format(last, 'd MMM')}`,
+    month: () => format(start, 'MMMM'),
+    year: () => format(start, 'yyyy'),
+  }[mode]()
+
+  const relative = relativeLabel(period, now)
+  if (mode === 'year' || (isSameYear(start, now) && isSameYear(last, now))) return { title, caption: relative }
+  const years = isSameYear(start, last) ? format(last, 'yyyy') : `${format(start, 'yyyy')} to ${format(last, 'yyyy')}`
+  return { title, caption: `${relative}, ${years}` }
 }
 
 // Hours of a day, days of a week, weeks of a month (clipped to the month's edges) or months of a year.

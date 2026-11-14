@@ -1,19 +1,15 @@
-import { cn } from 'cn'
 import { subWeeks } from 'date-fns'
-import { ArrowDownToLineIcon, ArrowUpFromLineIcon, GaugeIcon, ScaleIcon, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { PeriodPicker } from '@/components/period-picker'
-import { UnitToggle } from '@/components/unit-toggle'
+import { DashboardControls, DashboardShell } from '@/components/dashboard-shell'
+import { StatTile } from '@/components/stat-tile'
 import { SeriesLegend, UsageChart, type Series } from '@/components/usage-chart'
-import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTariffs } from '@/hooks/use-tariffs'
 import { useUsage } from '@/hooks/use-usage'
 import type { Reading } from '@/lib/octopus'
 import { periodContaining, type Period, type PeriodMode } from '@/lib/period'
-import { formatValue, VALUE_OF, type Tariffs, type Unit } from '@/lib/tariff'
+import { VALUE_OF, type Tariffs, type Unit } from '@/lib/tariff'
 import { useSettings, type ChartLayout } from '@/stores/settings'
 
 const BUCKET_NAMES: Record<PeriodMode, string> = { day: 'hour', week: 'day', month: 'week', year: 'month' }
@@ -31,52 +27,6 @@ const sum = (readings: Reading[], valueOf: (reading: Reading) => number) =>
 const TILE_TITLES: Record<Unit, [string, string, string]> = {
   kwh: ['Imported from grid', 'Exported to grid', 'Net import'],
   gbp: ['Import cost', 'Export earnings', 'Net cost'],
-}
-
-// Each tile's icon, tinted to match its chart series where it has one.
-const TILE_ICONS = {
-  imported: { icon: ArrowDownToLineIcon, className: 'text-chart-import' },
-  exported: { icon: ArrowUpFromLineIcon, className: 'text-chart-export' },
-  net: { icon: ScaleIcon, className: 'text-muted-foreground' },
-  rate: { icon: GaugeIcon, className: 'text-muted-foreground' },
-} satisfies Record<string, { icon: LucideIcon; className: string }>
-
-type StatTileProps = {
-  title: string
-  // null means there's nothing to show, such as a rate with no kWh to divide by.
-  value: number | null | undefined
-  // 'rate' is pence per kWh.
-  unit: Unit | 'rate'
-  icon: keyof typeof TILE_ICONS
-}
-
-function StatTile({ title, value, unit, icon }: StatTileProps) {
-  const { icon: Icon, className } = TILE_ICONS[icon]
-  return (
-    <Card className="rounded-2xl ring-0">
-      <CardContent className="flex flex-col gap-1">
-        <span className="flex items-center gap-2 text-xs font-medium tracking-label text-muted-foreground uppercase">
-          <Icon className={cn('size-4', className)} aria-hidden />
-          {title}
-        </span>
-        {value === undefined ? (
-          <Skeleton className="h-10 w-32 bg-muted" />
-        ) : value === null ? (
-          <span className="text-4xl font-bold tracking-heading text-muted-foreground">n/a</span>
-        ) : unit === 'rate' ? (
-          <span className="text-4xl font-bold tracking-heading tabular-nums">
-            {value.toFixed(1)}p <span className="text-base font-medium">/kWh</span>
-          </span>
-        ) : unit === 'kwh' ? (
-          <span className="text-4xl font-bold tracking-heading tabular-nums">
-            {value.toFixed(1)} <span className="text-base font-medium">kWh</span>
-          </span>
-        ) : (
-          <span className="text-4xl font-bold tracking-heading tabular-nums">{formatValue(value, unit)}</span>
-        )}
-      </CardContent>
-    </Card>
-  )
 }
 
 type ChartCardProps = {
@@ -129,26 +79,16 @@ function ChartCard({ series, readings, tariffs, period, unit, byHourOfDay }: Cha
   )
 }
 
-type ChartCardsProps = Omit<ChartCardProps, 'series'> & { layout: ChartLayout; only?: Series }
+type ChartCardsProps = Omit<ChartCardProps, 'series'> & { layout: ChartLayout }
 
 // One combined chart, or a chart each for import and export, depending on the layout setting.
-function ChartCards({ layout, only, ...props }: ChartCardsProps) {
-  if (only) return <ChartCard series={[only]} {...props} />
+function ChartCards({ layout, ...props }: ChartCardsProps) {
   if (layout === 'joint') return <ChartCard series={['imported', 'exported']} {...props} />
   return (
     <>
       <ChartCard series={['imported']} {...props} />
       <ChartCard series={['exported']} {...props} />
     </>
-  )
-}
-
-function ControlGroup({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="text-xs font-medium tracking-label text-muted-foreground uppercase">{label}</span>
-      {children}
-    </div>
   )
 }
 
@@ -163,13 +103,11 @@ export type DashboardData = {
 type UsageDashboardProps = {
   title: string
   description: string
-  // Limits the figures and charts to one direction; both are shown when left out.
-  only?: Series
   // Extra sections shown below the charts; a function gets the dashboard's period and loaded data.
   children?: ReactNode | ((data: DashboardData) => ReactNode)
 }
 
-export function UsageDashboard({ title, description, only, children }: UsageDashboardProps) {
+export function UsageDashboard({ title, description, children }: UsageDashboardProps) {
   const [period, setPeriod] = useState(() => periodContaining('week', subWeeks(new Date(), 1)))
   const [unit, setUnit] = useState<Unit>('kwh')
   const usage = useUsage(period)
@@ -184,99 +122,48 @@ export function UsageDashboard({ title, description, only, children }: UsageDash
     loaded && tariffs && sum(loaded[series], (reading) => VALUE_OF[series](reading, unit, tariffs))
   const imported = total('imported', unit)
   const exported = total('exported', unit)
+  // Average pence per kWh over the period, whichever unit the figures are in; undefined with nothing to divide by.
+  const averageRate = (series: Series) => {
+    const kwh = total(series, 'kwh')
+    const pounds = total(series, 'gbp')
+    return kwh && pounds !== undefined ? `${((pounds * 100) / kwh).toFixed(1)}p/kWh on average` : undefined
+  }
+  // Net cost over net kWh; meaningless once export matches or beats import, so it's left out then.
+  const netRate = (() => {
+    const totals = [total('imported', 'kwh'), total('exported', 'kwh'), total('imported', 'gbp'), total('exported', 'gbp')]
+    if (!totals.every((value): value is number => value !== undefined)) return undefined
+    const [importKwh, exportKwh, importGbp, exportGbp] = totals
+    const netKwh = importKwh - exportKwh
+    return netKwh > 0 ? `${(((importGbp - exportGbp) * 100) / netKwh).toFixed(1)}p/kWh net` : undefined
+  })()
   const [importTitle, exportTitle, netTitle] = TILE_TITLES[unit]
-  const onlyKwh = only && total(only, 'kwh')
-  const onlyGbp = only && total(only, 'gbp')
 
   return (
-    <div className="mx-auto flex w-full max-w-8xl flex-col gap-6 p-4 sm:p-8">
-      <header>
-        <h1 className="text-3xl font-bold tracking-heading">{title}</h1>
-        <p className="text-muted-foreground">{description}</p>
-      </header>
-
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* Above the content on small screens; a sticky panel on the right from lg up */}
-        <aside className="lg:sticky lg:top-8 lg:order-last lg:w-80 lg:shrink-0">
-          <Card className="rounded-2xl ring-0">
-            <CardContent className="flex flex-col gap-5">
-              {/* items-end lines the button up with the toggle rather than its label */}
-              <div className="flex items-end justify-between gap-3">
-                <ControlGroup label="Show in">
-                  <UnitToggle value={unit} onChange={setUnit} />
-                </ControlGroup>
-                <Button render={<Link to="/settings" />} nativeButton={false} variant="outline">
-                  See tariff
-                </Button>
-              </div>
-              <ControlGroup label="Period">
-                <PeriodPicker value={period} onChange={setPeriod} />
-              </ControlGroup>
-            </CardContent>
-          </Card>
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
-          {errors.map((message) => (
-            <Card key={message} className="rounded-2xl bg-destructive/10 ring-0">
-              <CardContent className="text-destructive">{message}</CardContent>
-            </Card>
-          ))}
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            {only ? (
-              // A single direction gets both figures, kWh and pounds, whichever unit the charts show,
-              // plus the average rate they work out at.
-              <>
-                <StatTile title={TILE_TITLES.kwh[only === 'imported' ? 0 : 1]} value={onlyKwh} unit="kwh" icon={only} />
-                <StatTile title={TILE_TITLES.gbp[only === 'imported' ? 0 : 1]} value={onlyGbp} unit="gbp" icon={only} />
-                <StatTile
-                  icon="rate"
-                  title={only === 'imported' ? 'Average import rate' : 'Average export rate'}
-                  value={onlyKwh === undefined || onlyGbp === undefined ? undefined : onlyKwh ? (onlyGbp * 100) / onlyKwh : null}
-                  unit="rate"
-                />
-              </>
-            ) : (
-              <>
-                <StatTile title={importTitle} value={imported} unit={unit} icon="imported" />
-                <StatTile title={exportTitle} value={exported} unit={unit} icon="exported" />
-              </>
-            )}
-            {!only && (
-              <StatTile
-                icon="net"
-                title={netTitle}
-                value={imported === undefined || exported === undefined ? undefined : imported - exported}
-                unit={unit}
-              />
-            )}
-          </div>
-
-          <ChartCards
-            layout={chartLayout}
-            only={only}
-            readings={loaded}
-            tariffs={tariffs}
-            period={period}
-            unit={unit}
-          />
-          {/* A day is already charted by the hour, so only longer periods get the time-of-day view */}
-          {period.mode !== 'day' && (
-            <ChartCards
-              layout={chartLayout}
-              only={only}
-              readings={loaded}
-              tariffs={tariffs}
-              period={period}
-              unit={unit}
-              byHourOfDay
-            />
-          )}
-
-          {typeof children === 'function' ? children({ period, unit, readings: loaded, tariffs }) : children}
-        </div>
+    <DashboardShell
+      title={title}
+      description={description}
+      errors={errors}
+      controls={<DashboardControls period={period} onPeriodChange={setPeriod} unit={{ value: unit, onChange: setUnit }} />}
+    >
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile title={importTitle} value={imported} unit={unit} icon="imported" note={averageRate('imported')} />
+        <StatTile title={exportTitle} value={exported} unit={unit} icon="exported" note={averageRate('exported')} />
+        <StatTile
+          icon="net"
+          note={netRate}
+          title={netTitle}
+          value={imported === undefined || exported === undefined ? undefined : imported - exported}
+          unit={unit}
+        />
       </div>
-    </div>
+
+      <ChartCards layout={chartLayout} readings={loaded} tariffs={tariffs} period={period} unit={unit} />
+      {/* A day is already charted by the hour, so only longer periods get the time-of-day view */}
+      {period.mode !== 'day' && (
+        <ChartCards layout={chartLayout} readings={loaded} tariffs={tariffs} period={period} unit={unit} byHourOfDay />
+      )}
+
+      {typeof children === 'function' ? children({ period, unit, readings: loaded, tariffs }) : children}
+    </DashboardShell>
   )
 }
