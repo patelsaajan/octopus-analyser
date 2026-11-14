@@ -147,26 +147,26 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
   } as const
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-col gap-3">
       <ToggleGroup
         aria-label="Group by"
         value={[value.mode]}
         // Ignore deselection so one mode is always active.
         onValueChange={(values) => values[0] && changeMode(values[0] as PeriodMode)}
-        className="gap-0.5 rounded-full bg-muted p-0.5"
+        className="w-full gap-0.5 rounded-full bg-muted p-0.5"
       >
         {MODES.map((mode) => (
           <ToggleGroupItem
             key={mode.value}
             value={mode.value}
-            className="rounded-full px-3 hover:bg-transparent aria-pressed:bg-secondary"
+            className="flex-1 rounded-full px-3 hover:bg-transparent aria-pressed:bg-secondary"
           >
             {mode.label}
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
 
-      <div className="flex items-center gap-1">
+      <div className="flex w-full items-center gap-1">
         <Button
           variant="ghost"
           size="icon"
@@ -176,12 +176,12 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
           <ChevronLeftIcon />
         </Button>
         <Popover open={open} onOpenChange={setOpen}>
-          {/* Fixed width (fits "27 Oct to 2 Nov 2026") so switching mode doesn't resize the button and shift the header */}
-          <PopoverTrigger render={<Button variant="outline" className="w-48 justify-start tabular-nums" />}>
+          {/* Fills the row between the arrows, so its width doesn't change with the label */}
+          <PopoverTrigger render={<Button variant="outline" className="min-w-0 flex-1 justify-start tabular-nums" />}>
             <CalendarIcon data-icon="inline-start" />
             {formatPeriod(value)}
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
+          <PopoverContent className="w-auto p-0" align="center">
             {value.mode === 'day' && (
               <Calendar mode="single" selected={value.start} onSelect={(date) => date && pick(date)} {...calendarProps} />
             )}

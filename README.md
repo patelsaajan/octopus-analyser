@@ -42,4 +42,3 @@ The current stack I am thinking of is a react + vite frontend deployed on cloudf
 Octopus provide two API option being GraphQL and a REST optioN. I plan to utilise the GraphQL because i've used it in the past and want to solidfy my knowledge in it. 
 
 
-

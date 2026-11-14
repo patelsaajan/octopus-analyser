@@ -34,7 +34,9 @@
 
   /* Charts: import is the brand pink rather than design.md's #fa98ff, which sits too close to cyan for deutan vision */
   --chart-import: #f050f8;
-  --chart-export: #60f0f8;
+  /* Export uses the app's own purple so its bars match the toggles and highlights */
+  --chart-export: var(--secondary);
+  --chart-gas: #60f0f8;
   --chart-grid: #5a537e;
 
   /* Sidebar sits on the card surface so it reads as one step below the page */
@@ -56,6 +58,9 @@
   --tracking-heading: -0.01em;
   --tracking-label: 0.01em;
 
+  /* Page width cap, well past Tailwind's largest (7xl, 80rem) */
+  --container-8xl: 168rem;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -76,6 +81,7 @@
   --color-ring: var(--ring);
   --color-chart-import: var(--chart-import);
   --color-chart-export: var(--chart-export);
+  --color-chart-gas: var(--chart-gas);
   --color-chart-grid: var(--chart-grid);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);

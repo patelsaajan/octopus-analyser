@@ -2,21 +2,34 @@ import { format, getHours, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
 import type { Reading } from '@/lib/octopus'
 import { bucketsOf, type Bucket, type Period, type PeriodMode } from '@/lib/period'
-import { exportValue, formatValue, importValue, type Unit } from '@/lib/tariff'
+import { formatValue, VALUE_OF, type Tariffs, type Unit } from '@/lib/tariff'
 
 export type Series = 'imported' | 'exported'
 
-const SERIES: Record<Series, { label: string; color: string; valueOf: typeof importValue }> = {
-  imported: { label: 'Imported', color: 'var(--chart-import)', valueOf: importValue },
-  exported: { label: 'Exported', color: 'var(--chart-export)', valueOf: exportValue },
+// color feeds the chart's CSS variables; swatch is the same colour as a class, for the legend.
+const SERIES: Record<Series, { label: string; color: string; swatch: string }> = {
+  imported: { label: 'Imported', color: 'var(--chart-import)', swatch: 'bg-chart-import' },
+  exported: { label: 'Exported', color: 'var(--chart-export)', swatch: 'bg-chart-export' },
+}
+
+// The key for a chart showing more than one series, shown beside its title rather than under the plot.
+export function SeriesLegend({ series }: { series: Series[] }) {
+  return (
+    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      {series.map((key) => (
+        <span key={key} className="flex items-center gap-1.5">
+          <span className={`size-2.5 rounded-sm ${SERIES[key].swatch}`} aria-hidden />
+          {SERIES[key].label}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 // How each mode labels a bar on the axis, and in full in the tooltip.
@@ -68,13 +81,14 @@ const hourOfDayGrouping: Grouping = {
 type UsageChartProps = {
   // One entry draws a single series; two draw them side by side on a shared scale.
   series: { key: Series; readings: Reading[] }[]
+  tariffs: Tariffs
   period: Period
   unit: Unit
   // Totals each hour of the day across the period, instead of charting the period's own buckets.
   byHourOfDay?: boolean
 }
 
-function bucketTotals({ series, period, unit, byHourOfDay }: UsageChartProps): BucketTotal[] {
+function bucketTotals({ series, tariffs, period, unit, byHourOfDay }: UsageChartProps): BucketTotal[] {
   const { labels, indexOf } = byHourOfDay ? hourOfDayGrouping : periodGrouping(period)
   const totals: BucketTotal[] = labels.map((label) => ({
     ...label,
@@ -84,7 +98,7 @@ function bucketTotals({ series, period, unit, byHourOfDay }: UsageChartProps): B
   for (const { key, readings } of series) {
     for (const reading of readings) {
       const index = indexOf(reading)
-      if (index !== -1) totals[index][key] = (totals[index][key] ?? 0) + SERIES[key].valueOf(reading, unit)
+      if (index !== -1) totals[index][key] = (totals[index][key] ?? 0) + VALUE_OF[key](reading, unit, tariffs)
     }
   }
   return totals
@@ -128,7 +142,6 @@ export function UsageChart(props: UsageChartProps) {
             />
           }
         />
-        {props.series.length > 1 && <ChartLegend content={<ChartLegendContent />} />}
         {props.series.map(({ key }) => (
           <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={[4, 4, 0, 0]} />
         ))}

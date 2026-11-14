@@ -2,46 +2,72 @@ import type { Reading } from '@/lib/octopus'
 
 export type Unit = 'kwh' | 'gbp'
 
-// Pence per kWh. A reading is priced by the half-hour slot it starts in, in UK local time.
-export const RATES = {
-  import: { offPeak: 8, standard: 40 },
-  export: { standard: 9, peak: 16 },
+// One part of the day at one rate in pence per kWh, e.g. ECO7_NIGHT from 23:30 to 05:30.
+// activeFrom and activeTo are local times ("HH:mm" or "HH:mm:ss"); equal times mean the whole day.
+export type Timeslot = { timeslot: string; activeFrom: string; activeTo: string; rate: number }
+
+// A tariff on the account's current agreement, as read from the API.
+export type Tariff = {
+  name: string
+  // e.g. OUTGOING-PRIME-FIX-12M-26-06-23, and E-1R-<product>-K, whose last letter is the region.
+  productCode: string
+  tariffCode: string
+  validFrom: Date
+  validTo: Date | null
+  timezone: string
+  timeslots: Timeslot[]
 }
 
-const londonTime = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Europe/London',
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-})
+export type Tariffs = { import: Tariff; export: Tariff }
 
-function minutesIntoDay(date: Date): number {
-  const parts = londonTime.formatToParts(date)
-  const part = (type: 'hour' | 'minute') => Number(parts.find((p) => p.type === type)?.value)
-  return part('hour') * 60 + part('minute')
+const formatters = new Map<string, Intl.DateTimeFormat>()
+
+// "HH:mm" in the given timezone; tariff times are local, so a reading is priced in that zone.
+export function timeOfDay(date: Date, timeZone: string): string {
+  let formatter = formatters.get(timeZone)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    formatters.set(timeZone, formatter)
+  }
+  return formatter.format(date)
 }
 
-const at = (hour: number, minute = 0) => hour * 60 + minute
-
-// Off-peak runs overnight from 11:30pm to 5:30am.
-export function importRate(startAt: Date): number {
-  const minutes = minutesIntoDay(startAt)
-  return minutes >= at(23, 30) || minutes < at(5, 30) ? RATES.import.offPeak : RATES.import.standard
+// "05:30:00" or "05:30" as minutes since midnight.
+function minutesOf(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
 }
 
-// Peak export runs from 4pm to 7pm.
-export function exportRate(startAt: Date): number {
-  const minutes = minutesIntoDay(startAt)
-  return minutes >= at(16) && minutes < at(19) ? RATES.export.peak : RATES.export.standard
+// Whether a time of day falls in [from, to), where a slot like 23:30 to 05:30 wraps past midnight.
+function inSlot(minutes: number, from: number, to: number): boolean {
+  if (from === to) return true
+  return from < to ? minutes >= from && minutes < to : minutes >= from || minutes < to
 }
 
-// A reading's value in the chosen unit: kWh as-is, or its price in pounds.
-export function importValue(reading: Reading, unit: Unit): number {
-  return unit === 'kwh' ? reading.kwh : (reading.kwh * importRate(reading.startAt)) / 100
+export function rateAt(startAt: Date, tariff: Tariff): number {
+  const minutes = minutesOf(timeOfDay(startAt, tariff.timezone))
+  const slot = tariff.timeslots.find((slot) => inSlot(minutes, minutesOf(slot.activeFrom), minutesOf(slot.activeTo)))
+  // The slots cover the whole day, so a miss means the API returned something unexpected.
+  if (!slot) throw new Error(`No ${tariff.name} timeslot covers ${startAt.toISOString()}.`)
+  return slot.rate
 }
 
-export function exportValue(reading: Reading, unit: Unit): number {
-  return unit === 'kwh' ? reading.kwh : (reading.kwh * exportRate(reading.startAt)) / 100
+// A reading's value in the chosen unit: kWh as-is, or its price in pounds on the given tariff.
+function value(reading: Reading, unit: Unit, tariff: Tariff): number {
+  return unit === 'kwh' ? reading.kwh : (reading.kwh * rateAt(reading.startAt, tariff)) / 100
+}
+
+export function importValue(reading: Reading, unit: Unit, tariffs: Tariffs): number {
+  return value(reading, unit, tariffs.import)
+}
+
+export function exportValue(reading: Reading, unit: Unit, tariffs: Tariffs): number {
+  return value(reading, unit, tariffs.export)
+}
+
+export const VALUE_OF: Record<'imported' | 'exported', typeof importValue> = {
+  imported: importValue,
+  exported: exportValue,
 }
 
 const pounds = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' })
