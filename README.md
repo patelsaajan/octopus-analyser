@@ -1,53 +1,97 @@
 # Octopus Analyser
 
-## Motivation 
+A private dashboard for one household's Octopus Energy account. It shows electricity import, grid export and gas usage from the smart meters, and works out what the same usage would have cost or earned on other Octopus plans.
+
+## Motivation
 
 Recently my parents installed solar and a battery energy storage system (BESS) on their house. The system is the following:
 
-- 6.6kwh solar system
-- 16.6kwh battery storage (16kwh of useable storage)
-- Octopus import and export tarrif
+- 6.6kW solar system
+- 16.6kWh battery storage (16kWh of usable storage)
+- Octopus import and export tariff
 - Hypervolt 3 EV charger
 
-The system was designed around their peak winter usage of 20kwh/day. It is expected that during that peak winter days we should get around 3-4kwh of solar plus the additional 16kwh of battery storage.
+The system was designed around their peak winter usage of 20kWh/day. On those peak winter days we expect around 3 to 4kWh of solar plus the 16kWh of battery storage.
 
-The question I want to investigate is around which Octopus export tariff is more porfitable for the house. There is two octopus plans that are suitable:
+The question I wanted to investigate is which Octopus export tariff is more profitable for the house. There are two suitable Octopus plans:
 
-1. Outgoings Octopus - "Variable tariff currently paying a flat rate of 12p/kWh. Export whenever suits you and know you’re always getting a good price."
-2. Octopus Flux - "An import and export tariff. Schedule your home battery to get the best rates for consuming and selling your energy during peak periods."
+1. Outgoing Octopus: "Variable tariff currently paying a flat rate of 12p/kWh. Export whenever suits you and know you're always getting a good price."
+2. Octopus Flux: "An import and export tariff. Schedule your home battery to get the best rates for consuming and selling your energy during peak periods."
 
-The summary of the plans can be seen below:
+A summary of the export rates:
 
-| Plan        | Times                     |
-|             | 7pm-4pm     | 4pm-7pm     |
-| ----------- | ----------- | ----------- |
-| Outgoings   | 12 p/kwh    | 12 p/kwh    |
-| Flux        | 9p p/kwh    | 16 p/kwh    |
+| Plan     | 7pm to 4pm | 4pm to 7pm |
+| -------- | ---------- | ---------- |
+| Outgoing | 12p/kWh    | 12p/kWh    |
+| Flux     | 9p/kWh     | 16p/kWh    |
 
-The house is current on the flux plan meaning.
+The house is currently on the Flux plan, and the system has been set up to do the following:
 
-The system has been set up to do the following:
+1. During the night, on the cheap import rate (11:30pm to 5:30am), the BESS charges itself to 100%. At the cheap rate on 13/11/2026 of 8p/kWh, a full charge costs £1.28.
+2. During the day the battery discharges as the house needs, and any spare solar tops the BESS back up.
+3. If the BESS is full and the solar is generating more than the house needs, the surplus is exported to the grid.
+4. 4pm to 7pm is the peak export window on Flux, when the export rate is higher. So between 6pm and 7pm the system exports until the battery hits 50%, which should leave enough in reserve until the cheap night rate.
 
-1. During the night on the cheap house tarrif (11:30pm to 5:30am) the BESS charges itself to 100%. At the current import cheap house tarrif (13/11/2026) that is 8p/kwh meaning the cost of charging is £1.28 for the BESS. 
-2. During the day the system discharges as the house needs, any additional solar is used to top the BESS.
-3. If the BESS system is fully charged and the solar system is generating surplus to the house requirements then it exports back to the grid. 
-4. 4-7pm is considered peak exporting on the octopus flux plan. Meaning you get a higher export tarrif in those windows. So between 6pm and 7pm the system is set up to export till it hits 50% which should be enough in reserve till the night cheap tarrif. 
+The idea is simple: use the Octopus developer API to build a visual dashboard of the house's usage, and see whether the current plan is the best one to be on.
 
-The plan is simple, utilising the Octopus developer API I want to create a visuable dashboard for the house useage and see if the current plan (flux) is the better choice to be on. 
+## What it does
 
-## How it will work?
+The app has three pages:
 
-The current stack I am thinking of is a react + vite frontend deployed on cloudflare and since its personal household data I'm planning to block the page using Cloudflare Zero Trust which I haven't used before. Cloudflare Zero Trust block all request to the site unless they sign in with Cloudflare and are on a approved user list. 
+- **Usage** (`/`): half-hourly grid import and export from the smart meter, plus gas, for a chosen day, week, month or year. Figures can be shown in kWh or in pounds at the account's own tariff rates. Charts show usage across the period and folded onto a 24-hour axis, to show when energy tends to flow.
+- **Plan analysis** (`/overview`): what the period cost or earned on the current plan, next to what it would have on other plans, each priced at the rates that plan actually had at the time. There is a section each for electricity import, electricity export and gas. You can also add custom plans, with your own rates for each part of the day and a standing charge, to test a plan Octopus doesn't list.
+- **Settings** (`/settings`): the account details, the current import, export and gas tariffs with their rates and times, and display preferences (combined or separate import and export charts, plan comparison as cards or a table).
 
-Octopus provide two API option being GraphQL and a REST optioN. I plan to utilise the GraphQL because i've used it in the past and want to solidfy my knowledge in it. 
+Display preferences and custom plans are saved in the browser's local storage.
 
+## How it works
 
-design it was making the account box the same height as the tariff box
+- **Frontend:** React 19 and Vite 8 with TypeScript, React Router, Tailwind v4, shadcn components on Base UI, Recharts for the charts and Zustand for settings.
+- **Account data:** the Octopus GraphQL API, for meter readings, the account's tariffs and account details. The browser never talks to it directly. It posts to `/graphql` on a small backend, which holds the API key, fills in the account number and only forwards read queries, so the dashboard cannot be used to change the account.
+- **Other plans' rates:** Octopus's public REST API, which needs no login, called straight from the browser.
+- **Hosting:** Cloudflare Workers on a custom domain, with Cloudflare Access (Zero Trust) in front so only people on an approved list can open it.
 
-moving graph legend so it gives more space for the graph
+Each deployment serves a single Octopus account.
 
-i sent it away to build the import and it choose to use the rest api to the the other plans details. the data from the rest api was more useful 
+## Getting started
 
-fancied a restrucutre as the import and export felt too similar to the usage tab, so i make a overview tab with the each section performance. 
+You need:
 
-adding custom plan check where you can add prices for times and built up the rules incase you want to compare if you switch. 
+- Node 22.13 or later and [pnpm](https://pnpm.io/installation)
+- An Octopus Energy account with a smart meter
+- An Octopus API key, created on the [API access page](https://octopus.energy/dashboard/new/accounts/personal-details/api-access) of your Octopus dashboard
+- Your account number (e.g. `A-1234ABCD`), shown on your bill and dashboard
+
+Then:
+
+```sh
+git clone <this repo's URL>
+cd octopus-analyser/web
+cp .env.example .env   # then fill in OCTOPUS_API_KEY and OCTOPUS_ACCOUNT_NUMBER
+pnpm install
+pnpm dev
+```
+
+Open the URL Vite prints (http://localhost:5173 by default). `.env` is gitignored, so your key stays out of git. If you change `.env`, restart the dev server.
+
+The app lives in `web/`, so every `pnpm` command is run from there.
+
+## Deploying
+
+See [web/README.md](web/README.md) for deploying to Cloudflare Workers with `pnpm run deploy`.
+
+**The app has no login of its own.** Before you deploy, read the Cloudflare Access section of that README. Without Access in front of the domain, anyone who finds the URL can see your household's energy data and account details.
+
+## Repo layout
+
+| Path | What it holds |
+| --- | --- |
+| `web/src/app/` | The three pages, plus global CSS and design tokens |
+| `web/src/components/` | Dashboard components, and shadcn components in `ui/` |
+| `web/src/hooks/` | Data-loading hooks for usage, gas, tariffs and plans |
+| `web/src/lib/` | Octopus API clients, tariff pricing, periods and custom plans |
+| `web/src/stores/` | The persisted settings store |
+| `web/server/` | The dev-only `/graphql` proxy, a Vite plugin |
+| `web/worker/` | The production `/graphql` proxy, a Cloudflare Worker |
+| `web/scripts/` | The deploy script |
+| `web/public/` | Static assets, `robots.txt` and the security headers |
